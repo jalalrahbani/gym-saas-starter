@@ -1,0 +1,77 @@
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
+
+export type AppRole = "owner" | "admin" | "manager" | "reception" | "trainer" | "accountant";
+
+export async function resolveUser() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getClaims();
+  const userId = data?.claims?.sub;
+  if (error || !userId) return null;
+  return { supabase, userId, claims: data.claims };
+}
+
+export async function requireUser() {
+  const user = await resolveUser();
+  if (!user) redirect("/login");
+  return user!;
+}
+
+export async function resolveAppContext() {
+  const user = await resolveUser();
+  if (!user) return null;
+  const { supabase, userId, claims } = user;
+  const { data: orgMember, error: membershipError } = await supabase.from("organization_members").select("organization_id, role, location_id").eq("user_id", userId).eq("is_active", true).limit(1).maybeSingle();
+  if (membershipError) throw new Error(`Unable to load staff membership: ${membershipError.message}`);
+  if (!orgMember) return { user, hasOrganization: false as const };
+
+  const [{ data: organization, error: orgError }, { data: locations, error: locationsError }, { data: profile }] = await Promise.all([
+    supabase.from("organizations").select("id, name, slug, country_code, timezone, base_currency, logo_path").eq("id", orgMember.organization_id).single(),
+    supabase.from("locations").select("id, name, address, timezone, is_active").eq("organization_id", orgMember.organization_id).eq("is_active", true).order("created_at"),
+    supabase.from("profiles").select("full_name, phone, avatar_path").eq("user_id", userId).maybeSingle(),
+  ]);
+  if (orgError || !organization) throw new Error(`Unable to load organization: ${orgError?.message ?? "not found"}`);
+  if (locationsError) throw new Error(`Unable to load locations: ${locationsError.message}`);
+  const allLocations = locations ?? [];
+  const role = orgMember.role as AppRole;
+  const isOrgWideRole = ["owner", "admin", "manager", "accountant"].includes(role);
+  const accessibleLocations = isOrgWideRole || !orgMember.location_id
+    ? allLocations
+    : allLocations.filter((item: any) => item.id === orgMember.location_id);
+  if (!accessibleLocations.length) throw new Error("This account has no active location access.");
+
+  const cookieStore = await cookies();
+  const requestedLocationId = cookieStore.get("active_location_id")?.value;
+  const location = accessibleLocations.find((item: any) => item.id === requestedLocationId)
+    ?? accessibleLocations.find((item: any) => item.id === orgMember.location_id)
+    ?? accessibleLocations[0];
+
+  return {
+    user,
+    hasOrganization: true as const,
+    supabase,
+    userId,
+    email: typeof claims.email === "string" ? claims.email : "",
+    profile,
+    organization,
+    locations: accessibleLocations,
+    role,
+    location,
+  };
+}
+
+export async function requireAppContext() {
+  const context = await resolveAppContext();
+  if (!context) redirect("/login");
+  const safeContext = context!;
+  if (!safeContext.hasOrganization) redirect("/onboarding");
+  return safeContext as Extract<NonNullable<typeof safeContext>, { hasOrganization: true }>;
+}
+
+export async function getExistingOrganizationMembership() {
+  const user = await requireUser();
+  const { supabase, userId } = user!;
+  const { data } = await supabase.from("organization_members").select("organization_id").eq("user_id", userId).eq("is_active", true).limit(1).maybeSingle();
+  return data;
+}
