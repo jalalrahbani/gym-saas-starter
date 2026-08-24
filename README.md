@@ -285,3 +285,8 @@ If you retain the Git history included in the project ZIP, simply add the remote
 ## Verification status
 
 Source-level TypeScript/TSX syntax validation and Git diff integrity are run before packaging this milestone. This execution environment currently cannot complete npm registry installation, so a real dependency-resolved `npm run typecheck` and `npm run build` must be run on your machine or CI after `npm install`. SQL migrations must also be applied/tested against an actual Supabase project before production use.
+
+## One-click macOS setup
+
+For the simplest first deployment on a Mac, unzip the project and double-click `SETUP_AND_DEPLOY_MAC.command`.
+The guided installer checks/install prerequisites, authenticates GitHub CLI, installs npm dependencies, links and migrates Supabase, creates `.env.local`, runs typecheck/build, pushes `main` to `jalalrahbani/gym-saas-starter`, and guides the first Vercel deployment. It never commits `.env.local` or application secrets. Stripe remains optional/off until operational testing is complete.
