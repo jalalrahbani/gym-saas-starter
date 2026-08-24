@@ -16,7 +16,8 @@ A production-oriented starting point for a multi-tenant gym management SaaS.
 - Multi-tenant Postgres schema
 - Row Level Security foundation
 - Core roles and audit model
-- Membership, payment, check-in, PT and lead entities
+- Membership, payment, PT and lead entities
+- Unified access-card/RFID/QR attendance model with check-in, check-out and visit duration
 - SaaS subscription/webhook foundation
 - CI workflow
 - Detailed product decisions, UI spec and product blueprint
@@ -60,6 +61,7 @@ Demo pages:
 - `/` — product landing page
 - `/dashboard` — staff dashboard mock
 - `/members` — searchable member directory mock
+- `/check-in` — interactive access/check-in/check-out terminal demo
 - `/api/health` — health endpoint
 
 ### 4. Database
@@ -70,6 +72,7 @@ Migration:
 
 ```text
 supabase/migrations/0001_initial.sql
+supabase/migrations/0002_access_attendance.sql
 ```
 
 Optional development seed:
@@ -127,6 +130,8 @@ docs/PRODUCT_BLUEPRINT.md        product story + architecture
 10. Separate private object storage for member photos/documents.
 11. Migrations and CI before production changes.
 12. SaaS billing and gym-member payment processing remain separate domains.
+13. Raw membership-card/RFID identifiers are never stored; server-side HMAC matching is used.
+14. Attendance uses one open session per member plus immutable access-event history.
 
 ## Next implementation milestone
 
@@ -138,3 +143,9 @@ The next code milestone should be **Authentication + Onboarding + real Members C
 4. member CRUD/photo upload
 5. test cross-tenant denial
 6. only then membership/payment/check-in workflows
+
+## Access reader compatibility
+
+The access terminal is designed around readers that operate in **USB HID / keyboard-wedge mode**. The gym keeps the scan field focused; swiping/tapping/scanning enters the credential identifier followed by Enter, exactly like keyboard input. This gives one software workflow for common magstripe membership cards, RFID/NFC cards or fobs, barcode cards and QR scanners.
+
+For production, raw credential identifiers must be sent only over HTTPS to a server route, normalized, HMACed with a server-only `CARD_TOKEN_HMAC_SECRET`, then matched against `access_credentials.token_hmac`. Do not store raw swipe data and never use payment-card magnetic-stripe data as a gym credential.

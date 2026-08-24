@@ -2,7 +2,7 @@ import { AppShell } from "@/components/app-shell";
 
 const metrics = [
   ["Active members", "842", "+3.8% this month"],
-  ["Checked in today", "96", "Peak hour 6–7 PM"],
+  ["Inside right now", "37", "96 check-ins today"],
   ["Revenue this month", "$18,420", "+8.1% vs last month"],
   ["Needs attention", "14", "6 expiring · 8 overdue"],
 ];
@@ -71,8 +71,8 @@ export default function DashboardPage() {
 
           <section className="rounded-2xl border border-[#e4e6ea] bg-white">
             <div className="border-b border-[#eceef1] p-5">
-              <h2 className="font-semibold">Recent check-ins</h2>
-              <p className="mt-1 text-sm text-[#7a7f89]">Reception activity in real time.</p>
+              <h2 className="font-semibold">Recent access</h2>
+              <p className="mt-1 text-sm text-[#7a7f89]">Check-ins and check-outs in real time.</p>
             </div>
             <div className="divide-y divide-[#f0f1f3]">
               {checkins.map(([name, time, status]) => (

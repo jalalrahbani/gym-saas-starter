@@ -3,7 +3,7 @@ import Link from "next/link";
 const primary = [
   ["Dashboard", "/dashboard"],
   ["Members", "/members"],
-  ["Check-in", "#"],
+  ["Check-in", "/check-in"],
   ["Memberships", "#"],
   ["Payments", "#"],
   ["Training", "#"],
