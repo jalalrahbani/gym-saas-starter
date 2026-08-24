@@ -6,7 +6,7 @@ The platform replaces the collection of spreadsheets, notebooks, calendars, paym
 
 A gym owner signs up, creates the gym and location, chooses the currency/timezone, creates membership plans and invites staff. Existing members are imported instead of retyped.
 
-At reception, staff work from a single operational dashboard. A new visitor can be captured as a lead, converted to a member, assigned a membership and given a digital QR code or physical membership card/fob. When that person arrives, the receptionist can swipe/tap the card, scan the QR/barcode or search the member. The system checks membership eligibility and warnings, opens an attendance session, and records the exact check-in time. A second swipe/tap at exit closes that visit and records check-out time and duration. When the member pays, the payment is recorded against that member/membership and a receipt is generated. When the membership approaches expiry, the renewal queue surfaces it automatically.
+At reception, staff work from a single operational dashboard. A new visitor can be captured as a lead, converted to a member, assigned a membership and given a digital QR card. When that person arrives, the receptionist scans or searches them. The system checks the membership, visit balance and warnings, then records attendance. When the member pays, the payment is recorded against that member/membership and a receipt is generated. When the membership approaches expiry, the renewal queue surfaces it automatically.
 
 For personal training, the same member record contains PT package balance and bookings. Completing a PT session updates the schedule and package balance together. Classes use the same identity and membership eligibility rules instead of maintaining a second roster.
 
@@ -23,7 +23,7 @@ Record a walk-in, Instagram lead or referral in seconds. Staff know who needs fo
 Create the member profile, choose a plan, take a profile photo and record the first payment. The member immediately has a clear membership status and digital identity.
 
 **3. Make reception effortless**  
-Swipe a membership card, tap an RFID/NFC card or fob, scan a QR/barcode, or search by name, phone or member ID. The screen instantly shows whether access is valid and records the member's exact arrival time. At exit, another swipe/tap records check-out and visit duration.
+Search a name, phone number or member ID — or scan a QR code. The screen instantly shows whether access is valid, expiring, exhausted or requires attention.
 
 **4. Keep memberships accurate automatically**  
 Start dates, expiries, visit balances, freezes and renewals live in one membership history. Staff stop calculating dates manually.
@@ -93,12 +93,6 @@ Payment/subscription providers can send the same event repeatedly. `webhook_even
 ### Uploaded files are separate from operational rows
 Database rows store metadata/path; private object storage holds the actual files. This keeps database performance predictable and permits separate storage retention/backups.
 
-### Access credentials are replaceable without changing the member
-A member may have one or more issued credentials (card, fob, QR). Lost cards are revoked and replaced; historical attendance still belongs to the member. Raw identifiers are never persisted—only a server-side HMAC plus a last-four display value.
-
-### Attendance is both operational and auditable
-Clean `attendance_sessions` power occupancy and duration reports, while append-only `access_events` preserve every access attempt, including denied and duplicate scans. A partial unique index prevents a member from having two simultaneous open visits.
-
 ### Audit logs explain sensitive changes
 Permission changes, check-in overrides, financial status changes and other critical actions produce immutable audit records.
 
@@ -125,8 +119,7 @@ Production uses automated database backup/PITR where available plus separate pro
 - Membership plan CRUD
 - Membership assignment/renewal/freeze
 - Payment recording/receipts/balances
-- Unified check-in/check-out flow + QR/barcode/card/RFID/NFC keyboard-wedge input
-- Current occupancy + visit duration tracking
+- Check-in flow + QR
 - Basic dashboard/reports
 - Staff invitations/roles
 - Audit events

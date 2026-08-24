@@ -1,65 +1,27 @@
-"use client";
+import Link from "next/link";
+import { createMemberAction } from "@/app/actions";
+import { requireAppContext } from "@/lib/app-context";
+import { memberDisplayNumber } from "@/lib/format";
 
-import { useMemo, useState } from "react";
-import { AppShell } from "@/components/app-shell";
+export default async function MembersPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const ctx = await requireAppContext();
+  const params = await searchParams;
+  const query = typeof params.q === "string" ? params.q.trim() : "";
+  const showNew = params.new === "1";
+  const imported = typeof params.imported === "string" ? params.imported : null;
 
-const members = [
-  { id: "M-0184", name: "Maya Haddad", phone: "+961 70 555 182", plan: "Monthly", expiry: "26 Aug 2026", status: "Expiring" },
-  { id: "M-0183", name: "Karim Nassar", phone: "+961 71 442 010", plan: "Quarterly", expiry: "27 Aug 2026", status: "Expiring" },
-  { id: "M-0182", name: "Rita Daher", phone: "+961 76 118 921", plan: "Annual", expiry: "29 Aug 2026", status: "Active" },
-  { id: "M-0181", name: "Joe Saad", phone: "+961 03 889 431", plan: "Monthly", expiry: "31 Aug 2026", status: "Active" },
-  { id: "M-0180", name: "Sarah Fares", phone: "+961 81 642 004", plan: "Monthly", expiry: "28 Aug 2026", status: "Active" },
-  { id: "M-0179", name: "Nadim Karam", phone: "+961 70 220 107", plan: "10 Visits", expiry: "—", status: "Active" },
-];
+  let request = ctx.supabase.from("members").select("id, member_number, first_name, last_name, phone, email, status, joined_at")
+    .eq("organization_id", ctx.organization.id).is("archived_at", null).order("created_at", { ascending: false }).limit(100);
+  if (query) request = request.or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,phone.ilike.%${query}%,email.ilike.%${query}%`);
+  const { data: members, error } = await request;
+  if (error) throw new Error(error.message);
 
-export default function MembersPage() {
-  const [query, setQuery] = useState("");
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return members;
-    return members.filter((m) => [m.name, m.phone, m.id, m.plan].some((v) => v.toLowerCase().includes(q)));
-  }, [query]);
+  return <section className="mx-auto max-w-7xl">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm text-[#7a7f89]">Member directory</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">Members</h1></div><div className="flex flex-wrap gap-2"><Link href="/members/import" className="rounded-lg border border-[#dfe2e7] bg-white px-4 py-2.5 text-sm font-semibold">Import CSV</Link><a href="/api/export/members" className="rounded-lg border border-[#dfe2e7] bg-white px-4 py-2.5 text-sm font-semibold">Export CSV</a><Link href="/members?new=1" className="rounded-lg bg-[#111318] px-4 py-2.5 text-sm font-semibold text-white">+ New member</Link></div></div>
 
-  return (
-    <AppShell active="Members">
-      <section className="mx-auto max-w-7xl">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-          <div><p className="text-sm text-[#7a7f89]">Member directory</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">Members</h1></div>
-          <button className="rounded-lg bg-[#111318] px-4 py-2.5 text-sm font-semibold text-white">+ New member</button>
-        </div>
+    {imported && <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-900">Imported {imported} member profiles successfully.</div>}
+    {showNew && <div className="mb-6 rounded-2xl border border-[#dfe2e7] bg-white p-5 lg:p-6"><div className="mb-4 flex items-center justify-between"><div><h2 className="font-semibold">Add member</h2><p className="mt-1 text-sm text-[#7a7f89]">Create the profile first; assign a membership from the profile next.</p></div><Link href="/members" className="text-sm font-semibold">Close</Link></div><form action={createMemberAction} className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"><label className="text-sm font-medium">First name<input name="first_name" required className="mt-1.5 w-full rounded-xl border border-[#dfe2e7] px-3 py-2.5" /></label><label className="text-sm font-medium">Last name<input name="last_name" required className="mt-1.5 w-full rounded-xl border border-[#dfe2e7] px-3 py-2.5" /></label><label className="text-sm font-medium">Phone<input name="phone" inputMode="tel" className="mt-1.5 w-full rounded-xl border border-[#dfe2e7] px-3 py-2.5" /></label><label className="text-sm font-medium">Email<input name="email" type="email" className="mt-1.5 w-full rounded-xl border border-[#dfe2e7] px-3 py-2.5" /></label><label className="text-sm font-medium">Date of birth<input name="date_of_birth" type="date" className="mt-1.5 w-full rounded-xl border border-[#dfe2e7] px-3 py-2.5" /></label><label className="text-sm font-medium">Home location<select name="home_location_id" defaultValue={ctx.location.id} className="mt-1.5 w-full rounded-xl border border-[#dfe2e7] px-3 py-2.5">{ctx.locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></label><label className="text-sm font-medium">Emergency contact<input name="emergency_contact_name" className="mt-1.5 w-full rounded-xl border border-[#dfe2e7] px-3 py-2.5" /></label><label className="text-sm font-medium">Emergency phone<input name="emergency_contact_phone" className="mt-1.5 w-full rounded-xl border border-[#dfe2e7] px-3 py-2.5" /></label><div className="flex items-end"><button className="w-full rounded-xl bg-[#111318] px-4 py-2.5 text-sm font-semibold text-white">Create member</button></div></form></div>}
 
-        <div className="rounded-2xl border border-[#e4e6ea] bg-white">
-          <div className="flex flex-wrap items-center gap-3 border-b border-[#eceef1] p-4">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search name, phone or member ID…"
-              className="min-w-[240px] flex-1 rounded-lg border border-[#dfe2e7] bg-[#fafafa] px-3 py-2.5 text-sm outline-none focus:border-[#989da5]"
-            />
-            <button className="rounded-lg border border-[#dfe2e7] px-3 py-2.5 text-sm">Status ▾</button>
-            <button className="rounded-lg border border-[#dfe2e7] px-3 py-2.5 text-sm">Plan ▾</button>
-            <button className="rounded-lg border border-[#dfe2e7] px-3 py-2.5 text-sm">Import</button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[780px] text-left text-sm">
-              <thead className="bg-[#fafafa] text-xs uppercase tracking-wide text-[#8a9099]">
-                <tr><th className="px-5 py-3">Member</th><th>ID</th><th>Phone</th><th>Plan</th><th>Expiry</th><th>Status</th><th></th></tr>
-              </thead>
-              <tbody>
-                {filtered.map((m) => (
-                  <tr key={m.id} className="border-t border-[#f0f1f3] hover:bg-[#fcfcfd]">
-                    <td className="px-5 py-4"><div className="flex items-center gap-3"><div className="grid h-9 w-9 place-items-center rounded-full bg-[#eceef1] text-xs font-bold">{m.name.split(" ").map(v => v[0]).join("")}</div><span className="font-medium">{m.name}</span></div></td>
-                    <td className="text-[#6f7580]">{m.id}</td><td>{m.phone}</td><td>{m.plan}</td><td>{m.expiry}</td>
-                    <td><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${m.status === "Expiring" ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"}`}>{m.status}</span></td>
-                    <td className="pr-5 text-right"><button className="font-semibold">Open →</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="border-t border-[#eceef1] px-5 py-4 text-sm text-[#7a7f89]">Showing {filtered.length} of {members.length} demo members</div>
-        </div>
-      </section>
-    </AppShell>
-  );
+    <div className="rounded-2xl border border-[#e4e6ea] bg-white"><form className="flex flex-wrap items-center gap-3 border-b border-[#eceef1] p-4"><input name="q" defaultValue={query} placeholder="Search name, phone or email…" className="min-w-[240px] flex-1 rounded-lg border border-[#dfe2e7] bg-[#fafafa] px-3 py-2.5 text-sm" /><button className="rounded-lg border border-[#dfe2e7] px-4 py-2.5 text-sm font-medium">Search</button>{query && <Link href="/members" className="text-sm font-semibold">Clear</Link>}</form><div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-[#fafafa] text-xs uppercase tracking-wide text-[#8a9099]"><tr><th className="px-5 py-3">Member</th><th>ID</th><th>Phone</th><th>Email</th><th>Status</th><th></th></tr></thead><tbody>{(members ?? []).map((m: any) => <tr key={m.id} className="border-t border-[#f0f1f3] hover:bg-[#fcfcfd]"><td className="px-5 py-4"><div className="flex items-center gap-3"><div className="grid h-9 w-9 place-items-center rounded-full bg-[#eceef1] text-xs font-bold">{m.first_name[0]}{m.last_name[0]}</div><span className="font-medium">{m.first_name} {m.last_name}</span></div></td><td className="text-[#6f7580]">{memberDisplayNumber(m.member_number)}</td><td>{m.phone || "—"}</td><td>{m.email || "—"}</td><td><span className="rounded-full bg-[#f0f2f4] px-2.5 py-1 text-xs font-semibold capitalize">{m.status}</span></td><td className="pr-5 text-right"><Link href={`/members/${m.id}`} className="font-semibold">Open →</Link></td></tr>)}</tbody></table></div><div className="border-t border-[#eceef1] px-5 py-4 text-sm text-[#7a7f89]">Showing {members?.length ?? 0} members</div></div>
+  </section>;
 }

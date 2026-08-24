@@ -170,16 +170,10 @@ These choices resolve the earlier product questions into one coherent default ar
 - Gym logo, name, location identity, receipt/member-card branding and basic accent configuration.
 - Custom domains and full white-label removal are later Scale features.
 
-## 21. Hardware, access cards and API
+## 21. Hardware and API
 
-- The preferred V1 hardware path is **keyboard-wedge USB readers**: magstripe membership-card readers, RFID/NFC readers and barcode/QR scanners that type an identifier into the focused access field. This avoids browser-specific USB APIs and vendor drivers.
-- Raw card identifiers are never stored. The server normalizes them and stores/looks up an HMAC plus a non-sensitive last-four display value. Payment-card track data is explicitly out of scope; these are gym access credentials only.
-- Each terminal is configured as `check_in`, `check_out` or `toggle` and has duplicate-scan suppression.
-- Every physical visit is an `attendance_session` containing check-in and optional check-out timestamps. One member cannot have two simultaneous open visits.
-- Append-only `access_events` record allowed, denied and ignored scans for troubleshooting/security without polluting normal attendance reports.
-- Reports derive current occupancy, visit duration, peak hours, attendance frequency and member visit history from these sessions.
-- Stale open sessions can be auto-closed by a configurable end-of-day/max-duration rule. Auto-closed visits remain flagged and are not silently treated as precise duration measurements.
-- Dedicated turnstile/smart-lock integrations come later through a stable integration API while preserving the same credential/session model.
+- Generic USB barcode/QR scanners that behave like keyboards require no vendor SDK and are the preferred first hardware path.
+- RFID/turnstile/smart-lock integrations come later through a stable integration API.
 - Public API and webhooks are later; internal modules already use stable service boundaries so the public API can mirror them.
 - Google Calendar/Zapier/Make/accounting connectors are later integrations.
 

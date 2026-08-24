@@ -31,7 +31,7 @@ The content becomes single-column. The primary actions use a compact top bar and
 
 **First row:** four operational cards:
 - Active members
-- Inside right now (with today's check-in count as secondary context)
+- Checked in today
 - Revenue this period
 - Needs attention
 
@@ -64,42 +64,26 @@ Clicking a member opens the Member Profile rather than editing directly in the t
 - Memberships
 - Payments
 - Attendance
-- Access Cards
 - Training
 - Notes
 - Documents
 - Timeline
 
-The Overview should answer: Is this person allowed in? What do they owe? When do they expire? What is their next booking? The Access Cards tab lists active/revoked cards, fobs or QR credentials and provides Issue/Revoke/Replace actions without displaying the raw credential identifier.
+The Overview should answer: Is this person allowed in? What do they owe? When do they expire? What is their next booking?
 
-## Check-in / Check-out / Access
+## Check-in
 
-This is intentionally a dedicated high-speed reception terminal. It must work with inexpensive USB readers that behave like keyboards, avoiding vendor-specific drivers.
+This is intentionally a dedicated high-speed screen.
 
-**Top right:** current occupancy count for the selected location.
+**Center:** oversized scan/search input accepting QR/barcode/member number/phone/name.
 
-**Terminal mode selector:**
-- Smart In / Out — if the member has an open visit, the next scan checks them out; otherwise it checks them in.
-- Check-in only — intended for entrance-only terminals/turnstiles.
-- Check-out only — intended for exit-only terminals/turnstiles.
+**Result card:** large member photo, name, membership status, expiry/visits remaining, balance warning.
 
-**Center:** oversized always-focused scan/search input accepting membership-card swipe, RFID/NFC tap, QR/barcode, member number, phone or name.
-
-**Result card:** large member photo, name, membership status, expiry/visits remaining, balance warning and the resulting action.
-
-**Primary result:** green successful check-in/check-out or a clear warning state.
+**Primary result:** green successful check-in or a clear warning state.
 
 **Expired state:** Renew, Day Pass, Manager Override. Override requires reason.
 
-**Right panel:** today's visit log with member, check-in time, check-out time, duration and current `Inside` state.
-
-**Duplicate protection:** repeated reader input inside the terminal's configured duplicate window is ignored and logged rather than creating another visit.
-
-**Forgotten checkout:** a configurable end-of-day/max-visit job may auto-close stale open sessions. These visits are visibly marked `Auto-closed` and can be excluded from average-duration reporting so they do not distort analytics.
-
-**Member Profile → Attendance tab:** chronological visit history, total visits, total time, average visit duration, first/last visit and date-range export.
-
-A kiosk mode can later remove the normal navigation and allow member self-scan. Separate entrance and exit devices can be configured when a gym adds turnstiles.
+A kiosk mode can later remove the normal navigation and allow member self-scan.
 
 ## Memberships
 
