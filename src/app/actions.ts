@@ -24,8 +24,8 @@ function moneyToMinor(raw: string) {
   const normalized = raw.trim().replace(/,/g, "");
   if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) throw new Error("Enter a valid non-negative amount with at most 2 decimals.");
   const [whole, fraction = ""] = normalized.split(".");
-  const minor = BigInt(whole) * 100n + BigInt((fraction + "00").slice(0, 2));
-  if (minor > 9007199254740991n) throw new Error("Amount is too large.");
+  const minor = BigInt(whole) * BigInt(100) + BigInt((fraction + "00").slice(0, 2));
+  if (minor > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("Amount is too large.");
   return Number(minor);
 }
 

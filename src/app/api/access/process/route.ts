@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { resolveAppContext } from "@/lib/app-context";
 import { hmacAccessToken, normalizeAccessToken } from "@/lib/access/token";
 
+type AccessCredentialLookup = {
+  credential_id: string;
+  member_id: string;
+};
+
 export async function POST(request: Request) {
   const ctx = await resolveAppContext();
   if (!ctx) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -20,7 +25,8 @@ export async function POST(request: Request) {
   const secret = process.env.CARD_TOKEN_HMAC_SECRET;
   if (secret) {
     const tokenHmac = hmacAccessToken(scan, secret);
-    const { data: credential } = await ctx.supabase.rpc("lookup_access_credential", { p_organization_id: ctx.organization.id, p_token_hmac: tokenHmac }).maybeSingle();
+    const { data } = await ctx.supabase.rpc("lookup_access_credential", { p_organization_id: ctx.organization.id, p_token_hmac: tokenHmac }).maybeSingle();
+    const credential = data as AccessCredentialLookup | null;
     if (credential) {
       memberId = credential.member_id;
       credentialId = credential.credential_id;
