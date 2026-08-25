@@ -198,3 +198,19 @@ These choices resolve the earlier product questions into one coherent default ar
 - Classes: 7/10
 - Inventory/POS: 4/10
 - AI: 3/10 until core operational data is reliable
+
+## Member lifecycle, engagement and retention intelligence
+
+- A member profile must show the original `joined_at` date prominently as **Member since**; renewals never overwrite the original join date.
+- Membership validity and attendance engagement are separate concepts. A paid/valid member can still be disengaged and need retention outreach.
+- Engagement is calculated from attendance sessions using gym-local calendar dates:
+  - **5+ day streak:** current consecutive check-in streak of five or more calendar days.
+  - **Regular:** visited within the last seven days but current streak is below five.
+  - **At risk:** no recorded visit for 8–30 days.
+  - **Inactive:** no recorded visit for more than 30 days, or no attendance history yet.
+- Member screens show current streak, longest observed streak, last visit, lifetime visit count and recent 30-day visit frequency.
+- The member lifecycle timeline combines join, membership/renewal, freeze, payment, attendance, credential and staff-note events in chronological order.
+- Phone numbers should be stored in international/E.164-style format when possible (for example `+961...`) so WhatsApp deep links work reliably.
+- Renewal queues generate human-reviewed pre-filled WhatsApp messages containing the member first name, plan name and expiry date.
+- Retention queues also include at-risk/inactive win-back outreach and optional recognition messages for members on 5+ day streaks.
+- Official automated WhatsApp delivery remains a later provider integration; V1 uses explicit staff-triggered deep links so messages are reviewed before sending.

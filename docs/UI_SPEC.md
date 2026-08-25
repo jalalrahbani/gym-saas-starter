@@ -168,3 +168,42 @@ Mobile-first portal:
 - Account: profile and preferences
 
 It shares APIs/data rules with the staff product; it does not duplicate business logic.
+
+## Member intelligence additions
+
+### Members directory
+Each member row should expose enough context to act without opening the profile:
+- Member since / original join date
+- Current membership state (Active, Frozen, Needs renewal, No membership)
+- Attendance-derived engagement state (5+ day streak, Regular, At risk, Inactive)
+- Current streak and longest observed streak
+- Last visit and days since last visit
+- Phone number and WhatsApp renewal action when relevant
+
+### Member profile header
+The member header contains six operational summary cards:
+1. Membership state and current plan
+2. Engagement state
+3. Current / best attendance streak
+4. Last visit
+5. Lifetime visits + recent 30-day visit days
+6. Renewal date / days remaining
+
+The primary CTA is **WhatsApp renewal** when a usable phone number exists.
+
+### Member lifecycle timeline
+A single timeline starts at the original join date and interleaves:
+- Join event
+- Membership enrollment / renewals
+- Membership freezes
+- Payments / receipts
+- Check-ins / check-outs / visit duration
+- Access-card issuance/revocation
+- Staff notes
+
+### Retention & Messages
+The retention center contains live queues for:
+- Memberships expiring within 14 days → WhatsApp renewal
+- Members at risk (8–30 days without a visit) → win-back WhatsApp
+- Inactive members (30+ days / never visited) → reactivation outreach
+- Members on 5+ consecutive-day streaks → optional recognition message
