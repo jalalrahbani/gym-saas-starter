@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAppContext } from "@/lib/app-context";
+import { ROLE_GROUPS, roleAllowed } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,10 @@ function csvCell(value: unknown) {
 
 export async function GET() {
   const ctx = await requireAppContext();
+  if (!roleAllowed(ctx.role, ROLE_GROUPS.memberManagers)) {
+    return NextResponse.json({ error: "Your role cannot export member data." }, { status: 403 });
+  }
+
   const { data, error } = await ctx.supabase
     .from("members")
     .select("member_number,first_name,last_name,phone,email,date_of_birth,status,joined_at,created_at")

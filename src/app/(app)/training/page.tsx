@@ -1,10 +1,12 @@
 import { completePtSessionAction, createPtPackageAction } from "@/app/actions";
 import { cancelPtSessionAction, reschedulePtSessionAction } from "./actions";
+import { AccessDenied } from "@/components/access-denied";
 import { PtBookingForm } from "@/components/training/pt-booking-form";
 import { requireAppContext } from "@/lib/app-context";
 import { formatDateTime } from "@/lib/format";
 import { whatsappHref } from "@/lib/member-insights";
 import { buildPtWhatsAppMessage, ptReminderLabel, type PtMessageKind } from "@/lib/pt-messages";
+import { ROLE_GROUPS, roleAllowed } from "@/lib/roles";
 
 function localDateTimeInput(value: string, timezone: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -31,6 +33,9 @@ function MessageButton({ href, children, primary = false }: { href: string | nul
 
 export default async function TrainingPage() {
   const ctx = await requireAppContext();
+  if (!roleAllowed(ctx.role, ROLE_GROUPS.training)) return <AccessDenied area="personal training" />;
+  const canSellPtPackage = roleAllowed(ctx.role, ROLE_GROUPS.membershipManagers);
+
   const [sessionsRes, membersRes, trainersRes, packagesRes] = await Promise.all([
     ctx.supabase
       .from("pt_sessions")
@@ -106,8 +111,8 @@ export default async function TrainingPage() {
       </div>
     </section>
 
-    <div className="grid gap-6 xl:grid-cols-2">
-      <section className="rounded-2xl border border-[#e4e6ea] bg-white p-5">
+    <div className={`grid gap-6 ${canSellPtPackage ? "xl:grid-cols-2" : ""}`}>
+      {canSellPtPackage && <section className="rounded-2xl border border-[#e4e6ea] bg-white p-5">
         <h2 className="font-semibold">Sell PT package</h2>
         <form action={createPtPackageAction} className="mt-4 grid gap-3 sm:grid-cols-2">
           <select name="member_id" required className="rounded-lg border border-[#dfe2e7] px-3 py-2">
@@ -120,9 +125,9 @@ export default async function TrainingPage() {
           </select>
           <input name="sessions" required type="number" min="1" placeholder="Sessions" className="rounded-lg border border-[#dfe2e7] px-3 py-2" />
           <input name="expires_on" type="date" className="rounded-lg border border-[#dfe2e7] px-3 py-2" />
-          <button className="sm:col-span-2 rounded-lg bg-[#111318] px-4 py-2 text-sm font-semibold text-white">Create package</button>
+          <button data-feedback="Creating PT package…" className="sm:col-span-2 rounded-lg bg-[#111318] px-4 py-2 text-sm font-semibold text-white">Create package</button>
         </form>
-      </section>
+      </section>}
 
       <section className="rounded-2xl border border-[#e4e6ea] bg-white p-5">
         <h2 className="font-semibold">Book PT session</h2>
@@ -154,7 +159,7 @@ export default async function TrainingPage() {
               </div>
               <form action={completePtSessionAction}>
                 <input type="hidden" name="session_id" value={session.id} />
-                <button className="rounded-lg border border-[#111318] px-3 py-2 text-xs font-semibold">Complete session</button>
+                <button data-feedback="Completing session…" className="rounded-lg border border-[#111318] px-3 py-2 text-xs font-semibold">Complete session</button>
               </form>
             </div>
 
@@ -176,7 +181,7 @@ export default async function TrainingPage() {
                   <input type="hidden" name="session_id" value={session.id} />
                   <label className="text-xs font-medium text-[#686e78]">New date & time<input name="starts_at" type="datetime-local" required defaultValue={localDateTimeInput(session.starts_at, ctx.organization.timezone)} className="mt-1.5 w-full rounded-lg border border-[#dfe2e7] bg-white px-3 py-2 text-sm" /></label>
                   <label className="text-xs font-medium text-[#686e78]">Duration (minutes)<input name="duration_minutes" type="number" min="15" max="480" required defaultValue={durationMinutes(session.starts_at, session.ends_at)} className="mt-1.5 w-full rounded-lg border border-[#dfe2e7] bg-white px-3 py-2 text-sm" /></label>
-                  <button className="sm:col-span-2 rounded-lg bg-[#111318] px-3 py-2 text-xs font-semibold text-white">Save new appointment time</button>
+                  <button data-feedback="Saving appointment…" className="sm:col-span-2 rounded-lg bg-[#111318] px-3 py-2 text-xs font-semibold text-white">Save new appointment time</button>
                 </form>
                 <p className="mt-2 text-xs text-[#8a9099]">After saving, use “Reschedule notice” above to message the member with the updated time.</p>
               </details>
@@ -186,7 +191,7 @@ export default async function TrainingPage() {
                 <p className="mt-3 text-xs text-rose-800">This changes the session status to cancelled. It does not send a message automatically.</p>
                 <form action={cancelPtSessionAction} className="mt-3">
                   <input type="hidden" name="session_id" value={session.id} />
-                  <button className="rounded-lg bg-rose-900 px-3 py-2 text-xs font-semibold text-white">Confirm cancellation</button>
+                  <button data-feedback="Cancelling appointment…" className="rounded-lg bg-rose-900 px-3 py-2 text-xs font-semibold text-white">Confirm cancellation</button>
                 </form>
               </details>
             </div>

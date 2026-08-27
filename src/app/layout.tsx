@@ -1,15 +1,25 @@
 import type { Metadata } from "next";
+import { InteractionFeedback } from "@/components/interaction-feedback";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Gym SaaS Starter",
-  description: "Multi-tenant gym management SaaS foundation",
+  title: {
+    default: "Gym Operations Platform",
+    template: "%s · Gym Operations Platform",
+  },
+  description:
+    "Connected gym operations for members, access, payments, training, classes, retention and reporting.",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <InteractionFeedback />
+      </body>
     </html>
   );
 }

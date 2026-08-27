@@ -24,6 +24,49 @@ body {
 a { color: inherit; text-decoration: none; }
 button, input, select { font: inherit; }
 
+button,
+a[href],
+summary,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:not(:disabled),
+a[href],
+summary,
+[role="button"]:not([aria-disabled="true"]) {
+  transition:
+    transform 120ms ease,
+    filter 120ms ease,
+    opacity 120ms ease,
+    box-shadow 160ms ease;
+}
+
+button:not(:disabled):active,
+a[href]:active,
+summary:active,
+[role="button"][data-interaction-pressed="true"],
+button[data-interaction-pressed="true"],
+a[data-interaction-pressed="true"],
+summary[data-interaction-pressed="true"] {
+  transform: translateY(1px) scale(0.985);
+  filter: brightness(0.96);
+}
+
+button:focus-visible,
+a[href]:focus-visible,
+summary:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid #67e8f9;
+  outline-offset: 2px;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .landing-grid {
   background-image:
     linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
@@ -91,5 +134,12 @@ button, input, select { font: inherit; }
   .pulse-bar,
   .scan-line {
     animation: none !important;
+  }
+
+  button,
+  a[href],
+  summary,
+  [role="button"] {
+    transition: none !important;
   }
 }

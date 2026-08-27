@@ -1,8 +1,11 @@
 import { CheckInTerminal } from "@/components/access/check-in-terminal";
+import { AccessDenied } from "@/components/access-denied";
 import { requireAppContext } from "@/lib/app-context";
+import { ROLE_GROUPS, roleAllowed } from "@/lib/roles";
 
 export default async function CheckInPage() {
   const ctx = await requireAppContext();
+  if (!roleAllowed(ctx.role, ROLE_GROUPS.accessOperators)) return <AccessDenied area="access and attendance" />;
   const [inside, visits] = await Promise.all([
     ctx.supabase.from("attendance_sessions").select("id", { count: "exact", head: true }).eq("organization_id", ctx.organization.id).eq("location_id", ctx.location.id).is("checked_out_at", null),
     ctx.supabase.from("attendance_sessions").select("id,checked_in_at,checked_out_at,members(first_name,last_name)").eq("organization_id", ctx.organization.id).eq("location_id", ctx.location.id).order("checked_in_at", { ascending: false }).limit(20),

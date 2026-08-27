@@ -3,12 +3,15 @@ import { notFound } from "next/navigation";
 import { PrintButton } from "@/components/payments/print-button";
 import { requireAppContext } from "@/lib/app-context";
 import { formatDateTime, formatMoney, memberDisplayNumber } from "@/lib/format";
+import { ROLE_GROUPS, roleAllowed } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReceiptPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const ctx = await requireAppContext();
+  if (!roleAllowed(ctx.role, ROLE_GROUPS.financial)) notFound();
+
   const { data: payment, error } = await ctx.supabase.from("payments")
     .select("id,receipt_number,amount_minor,currency,payment_method,status,paid_at,external_reference,note,member_id,members(member_number,first_name,last_name,phone,email),memberships(membership_plans(name))")
     .eq("organization_id",ctx.organization.id).eq("id",id).maybeSingle();

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { resolveAppContext } from "@/lib/app-context";
 import { hmacAccessToken, normalizeAccessToken } from "@/lib/access/token";
+import { ROLE_GROUPS, roleAllowed } from "@/lib/roles";
 
 type AccessCredentialLookup = {
   credential_id: string;
@@ -11,6 +12,9 @@ export async function POST(request: Request) {
   const ctx = await resolveAppContext();
   if (!ctx) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!ctx.hasOrganization) return NextResponse.json({ error: "Gym setup is incomplete" }, { status: 409 });
+  if (!roleAllowed(ctx.role, ROLE_GROUPS.accessOperators)) {
+    return NextResponse.json({ error: "Your role cannot process gym access." }, { status: 403 });
+  }
 
   const body = await request.json().catch(() => null) as { scan?: string; mode?: "toggle" | "check_in" | "check_out" } | null;
   const scan = normalizeAccessToken(body?.scan ?? "");
@@ -50,7 +54,7 @@ export async function POST(request: Request) {
   if (!memberId) {
     const words = scan.split(/\s+/).filter(Boolean);
     if (words.length >= 1) {
-      let q = ctx.supabase.from("members").select("id,first_name,last_name").eq("organization_id", ctx.organization.id).is("archived_at", null).ilike("first_name", `%${words[0]}%`).limit(5);
+      const q = ctx.supabase.from("members").select("id,first_name,last_name").eq("organization_id", ctx.organization.id).is("archived_at", null).ilike("first_name", `%${words[0]}%`).limit(5);
       const { data } = await q;
       const exactish = (data ?? []).filter((m) => `${m.first_name} ${m.last_name}`.toLowerCase().includes(scan.toLowerCase()));
       if (exactish.length === 1) memberId = exactish[0].id;

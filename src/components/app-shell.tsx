@@ -1,8 +1,290 @@
 "use client";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { setActiveLocationAction, signOutAction } from "@/app/actions";
-const primary=[["Dashboard","/dashboard"],["Members","/members"],["Access","/check-in"],["Memberships","/memberships"],["Payments","/payments"],["Training","/training"],["Classes","/classes"],["Leads","/leads"]] as const;const secondary=[["Messages","/messages"],["Reports","/reports"],["Staff","/staff"],["Settings","/settings"]] as const;
-function activeLabel(pathname:string){return[...primary,...secondary].find(([,href])=>pathname===href||pathname.startsWith(`${href}/`))?.[0]??"Workspace";}
-function readableText(hex:string){const v=hex.replace("#","");if(!/^[0-9a-fA-F]{6}$/.test(v))return"#111318";const r=parseInt(v.slice(0,2),16),g=parseInt(v.slice(2,4),16),b=parseInt(v.slice(4,6),16);return((0.299*r+0.587*g+0.114*b)/255)>0.62?"#111318":"#ffffff";}
-export function AppShell({children,organizationName,organizationLogoUrl,locationName,locationId,locations,userName,userAvatarUrl,role,accentColor,backgroundColor,sidebarColor}:{children:React.ReactNode;organizationName:string;organizationLogoUrl:string|null;locationName:string;locationId:string;locations:Array<{id:string;name:string}>;userName:string;userAvatarUrl:string|null;role:string;accentColor:string;backgroundColor:string;sidebarColor:string}){const pathname=usePathname();const active=activeLabel(pathname);const initials=userName.split(/\s+/).filter(Boolean).slice(0,2).map(v=>v[0]?.toUpperCase()).join("")||"U";const accentText=readableText(accentColor),sidebarText=readableText(sidebarColor);const nav=(items:readonly(readonly[string,string])[])=>items.map(([label,href])=>{const isActive=pathname===href||pathname.startsWith(`${href}/`);return <Link key={href} href={href} className="mb-1 block rounded-lg px-3 py-2.5 text-sm font-medium transition" style={isActive?{backgroundColor:accentColor,color:accentText}:{color:sidebarText,opacity:.78}}>{label}</Link>});return <div className="min-h-screen text-[#111318]" style={{backgroundColor}}><aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-black/10 lg:block" style={{backgroundColor:sidebarColor,color:sidebarText}}><div className="flex h-20 items-center gap-3 border-b border-black/10 px-6">{organizationLogoUrl?<img src={organizationLogoUrl} alt={`${organizationName} logo`} className="h-10 w-10 rounded-xl bg-white/80 object-contain p-1 ring-1 ring-black/10"/>:<div className="grid h-10 w-10 place-items-center rounded-xl font-bold" style={{backgroundColor:accentColor,color:accentText}}>{organizationName.slice(0,1).toUpperCase()}</div>}<div className="min-w-0"><div className="truncate text-lg font-bold tracking-tight">{organizationName}</div><div className="truncate text-xs opacity-65">{locationName}</div></div></div><nav className="p-4"><p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wider opacity-50">Operate</p>{nav(primary)}<p className="mt-7 px-3 pb-2 text-xs font-semibold uppercase tracking-wider opacity-50">Manage</p>{nav(secondary)}</nav></aside><div className="lg:pl-64"><header className="sticky top-0 z-20 border-b border-black/10 bg-white/90 backdrop-blur"><div className="flex h-20 items-center justify-between px-5 lg:px-8"><div className="min-w-0"><div className="flex min-w-0 items-center gap-2 text-xs font-medium text-[#8a9099]"><span className="hidden truncate sm:inline">{organizationName}</span>{locations.length>1?<form action={setActiveLocationAction}><select name="location_id" defaultValue={locationId} aria-label="Active gym location" onChange={e=>e.currentTarget.form?.requestSubmit()} className="max-w-44 rounded-md border border-[#e1e4e8] bg-white px-2 py-1 text-xs font-semibold text-[#3e434b]">{locations.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select></form>:<span className="truncate">{locationName}</span>}</div><div className="mt-0.5 font-semibold">{active}</div></div><div className="flex items-center gap-2 sm:gap-3"><form action="/search" method="get" className="hidden xl:block"><input name="q" type="search" placeholder="Search members, leads…" aria-label="Search workspace" className="w-56 rounded-lg border border-[#e1e4e8] bg-white px-3 py-2 text-sm"/></form><details className="relative"><summary className="cursor-pointer list-none rounded-lg px-3 py-2 text-sm font-semibold sm:px-4" style={{backgroundColor:accentColor,color:accentText}}>+ Quick add</summary><div className="absolute right-0 mt-2 w-48 rounded-xl border border-[#e1e4e8] bg-white p-2 shadow-lg"><Link href="/members?new=1" className="block rounded-lg px-3 py-2 text-sm hover:bg-[#f3f4f6]">New member</Link><Link href="/check-in" className="block rounded-lg px-3 py-2 text-sm hover:bg-[#f3f4f6]">Check in / out</Link><Link href="/payments" className="block rounded-lg px-3 py-2 text-sm hover:bg-[#f3f4f6]">Record payment</Link><Link href="/training" className="block rounded-lg px-3 py-2 text-sm hover:bg-[#f3f4f6]">Book PT</Link><Link href="/leads" className="block rounded-lg px-3 py-2 text-sm hover:bg-[#f3f4f6]">Add lead</Link></div></details><details className="relative"><summary className="grid h-10 w-10 cursor-pointer list-none place-items-center overflow-hidden rounded-full bg-[#eceef1] text-xs font-bold ring-1 ring-black/10">{userAvatarUrl?<img src={userAvatarUrl} alt={userName} className="h-full w-full object-cover"/>:initials}</summary><div className="absolute right-0 mt-2 w-52 rounded-xl border border-[#e1e4e8] bg-white p-2 shadow-lg"><div className="px-3 py-2"><p className="truncate text-sm font-semibold">{userName}</p><p className="text-xs capitalize text-[#7a7f89]">{role}</p></div><form action={signOutAction}><button className="w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-[#f3f4f6]">Sign out</button></form></div></details></div></div><nav className="flex gap-1 overflow-x-auto border-t border-[#f0f1f3] px-3 py-2 lg:hidden">{[...primary,...secondary].map(([label,href])=>{const isActive=pathname===href||pathname.startsWith(`${href}/`);return <Link key={href} href={href} className="whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold" style={isActive?{backgroundColor:accentColor,color:accentText}:{backgroundColor:"#f5f6f7",color:"#555b64"}}>{label}</Link>})}</nav></header><main className="p-5 lg:p-8">{children}</main></div></div>;}
+
+type NavItem = {
+  label: string;
+  href: string;
+  roles: string[];
+};
+
+const allRoles = ["owner", "admin", "manager", "reception", "trainer", "accountant"];
+
+const primary: NavItem[] = [
+  { label: "Dashboard", href: "/dashboard", roles: allRoles },
+  { label: "Members", href: "/members", roles: allRoles },
+  { label: "Access", href: "/check-in", roles: ["owner", "admin", "manager", "reception", "trainer"] },
+  { label: "Memberships", href: "/memberships", roles: ["owner", "admin", "manager", "reception", "accountant"] },
+  { label: "Payments", href: "/payments", roles: ["owner", "admin", "manager", "reception", "accountant"] },
+  { label: "Training", href: "/training", roles: ["owner", "admin", "manager", "reception", "trainer"] },
+  { label: "Classes", href: "/classes", roles: ["owner", "admin", "manager", "reception", "trainer"] },
+  { label: "Leads", href: "/leads", roles: ["owner", "admin", "manager", "reception"] },
+];
+
+const secondary: NavItem[] = [
+  { label: "Messages", href: "/messages", roles: ["owner", "admin", "manager", "reception"] },
+  { label: "Reports", href: "/reports", roles: ["owner", "admin", "manager", "accountant"] },
+  { label: "Staff", href: "/staff", roles: ["owner", "admin", "manager"] },
+  { label: "Settings", href: "/settings", roles: allRoles },
+];
+
+const quickAdd: NavItem[] = [
+  { label: "New member", href: "/members?new=1", roles: ["owner", "admin", "manager", "reception"] },
+  { label: "Check in / out", href: "/check-in", roles: ["owner", "admin", "manager", "reception", "trainer"] },
+  { label: "Record payment", href: "/payments", roles: ["owner", "admin", "manager", "reception", "accountant"] },
+  { label: "Book PT", href: "/training", roles: ["owner", "admin", "manager", "reception", "trainer"] },
+  { label: "Add lead", href: "/leads", roles: ["owner", "admin", "manager", "reception"] },
+];
+
+function allowed(items: NavItem[], role: string) {
+  return items.filter((item) => item.roles.includes(role));
+}
+
+function activeLabel(pathname: string) {
+  return [...primary, ...secondary].find(
+    ({ href }) => pathname === href || pathname.startsWith(`${href}/`),
+  )?.label ?? "Workspace";
+}
+
+function readableText(hex: string) {
+  const value = hex.replace("#", "");
+  if (!/^[0-9a-fA-F]{6}$/.test(value)) return "#111318";
+  const r = parseInt(value.slice(0, 2), 16);
+  const g = parseInt(value.slice(2, 4), 16);
+  const b = parseInt(value.slice(4, 6), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.62
+    ? "#111318"
+    : "#ffffff";
+}
+
+export function AppShell({
+  children,
+  organizationName,
+  organizationLogoUrl,
+  locationName,
+  locationId,
+  locations,
+  userName,
+  userAvatarUrl,
+  role,
+  accentColor,
+  backgroundColor,
+  sidebarColor,
+}: {
+  children: React.ReactNode;
+  organizationName: string;
+  organizationLogoUrl: string | null;
+  locationName: string;
+  locationId: string;
+  locations: Array<{ id: string; name: string }>;
+  userName: string;
+  userAvatarUrl: string | null;
+  role: string;
+  accentColor: string;
+  backgroundColor: string;
+  sidebarColor: string;
+}) {
+  const pathname = usePathname();
+  const active = activeLabel(pathname);
+  const initials =
+    userName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((value) => value[0]?.toUpperCase())
+      .join("") || "U";
+
+  const accentText = readableText(accentColor);
+  const sidebarText = readableText(sidebarColor);
+  const visiblePrimary = allowed(primary, role);
+  const visibleSecondary = allowed(secondary, role);
+  const visibleQuickAdd = allowed(quickAdd, role);
+
+  const nav = (items: NavItem[]) =>
+    items.map(({ label, href }) => {
+      const isActive = pathname === href || pathname.startsWith(`${href}/`);
+      return (
+        <Link
+          key={href}
+          href={href}
+          className="mb-1 block rounded-lg px-3 py-2.5 text-sm font-medium transition"
+          style={
+            isActive
+              ? { backgroundColor: accentColor, color: accentText }
+              : { color: sidebarText, opacity: 0.78 }
+          }
+        >
+          {label}
+        </Link>
+      );
+    });
+
+  return (
+    <div
+      className="min-h-screen text-[#111318]"
+      style={{ backgroundColor }}
+      data-role={role}
+    >
+      <aside
+        className="fixed inset-y-0 left-0 hidden w-64 border-r border-black/10 lg:block"
+        style={{ backgroundColor: sidebarColor, color: sidebarText }}
+      >
+        <div className="flex h-20 items-center gap-3 border-b border-black/10 px-6">
+          {organizationLogoUrl ? (
+            <img
+              src={organizationLogoUrl}
+              alt={`${organizationName} logo`}
+              className="h-10 w-10 rounded-xl bg-white/80 object-contain p-1 ring-1 ring-black/10"
+            />
+          ) : (
+            <div
+              className="grid h-10 w-10 place-items-center rounded-xl font-bold"
+              style={{ backgroundColor: accentColor, color: accentText }}
+            >
+              {organizationName.slice(0, 1).toUpperCase()}
+            </div>
+          )}
+          <div className="min-w-0">
+            <div className="truncate text-lg font-bold tracking-tight">
+              {organizationName}
+            </div>
+            <div className="truncate text-xs opacity-65">{locationName}</div>
+          </div>
+        </div>
+
+        <nav className="p-4">
+          <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wider opacity-50">
+            Operate
+          </p>
+          {nav(visiblePrimary)}
+          {visibleSecondary.length > 0 && (
+            <>
+              <p className="mt-7 px-3 pb-2 text-xs font-semibold uppercase tracking-wider opacity-50">
+                Manage
+              </p>
+              {nav(visibleSecondary)}
+            </>
+          )}
+        </nav>
+      </aside>
+
+      <div className="lg:pl-64">
+        <header className="sticky top-0 z-20 border-b border-black/10 bg-white/90 backdrop-blur">
+          <div className="flex h-20 items-center justify-between px-5 lg:px-8">
+            <div className="min-w-0">
+              <div className="flex min-w-0 items-center gap-2 text-xs font-medium text-[#8a9099]">
+                <span className="hidden truncate sm:inline">{organizationName}</span>
+                {locations.length > 1 ? (
+                  <form action={setActiveLocationAction}>
+                    <select
+                      name="location_id"
+                      defaultValue={locationId}
+                      aria-label="Active gym location"
+                      onChange={(event) => event.currentTarget.form?.requestSubmit()}
+                      className="max-w-44 rounded-md border border-[#e1e4e8] bg-white px-2 py-1 text-xs font-semibold text-[#3e434b]"
+                    >
+                      {locations.map((location) => (
+                        <option key={location.id} value={location.id}>
+                          {location.name}
+                        </option>
+                      ))}
+                    </select>
+                  </form>
+                ) : (
+                  <span className="truncate">{locationName}</span>
+                )}
+              </div>
+              <div className="mt-0.5 font-semibold">{active}</div>
+            </div>
+
+            <div className="flex items-center gap-2 sm:gap-3">
+              <form action="/search" method="get" className="hidden xl:block">
+                <input
+                  name="q"
+                  type="search"
+                  placeholder="Search members, leads…"
+                  aria-label="Search workspace"
+                  className="w-56 rounded-lg border border-[#e1e4e8] bg-white px-3 py-2 text-sm"
+                />
+              </form>
+
+              {visibleQuickAdd.length > 0 && (
+                <details className="relative">
+                  <summary
+                    className="cursor-pointer list-none rounded-lg px-3 py-2 text-sm font-semibold sm:px-4"
+                    style={{ backgroundColor: accentColor, color: accentText }}
+                  >
+                    + Quick add
+                  </summary>
+                  <div className="absolute right-0 mt-2 w-48 rounded-xl border border-[#e1e4e8] bg-white p-2 shadow-lg">
+                    {visibleQuickAdd.map(({ label, href }) => (
+                      <Link
+                        key={href}
+                        href={href}
+                        className="block rounded-lg px-3 py-2 text-sm hover:bg-[#f3f4f6]"
+                      >
+                        {label}
+                      </Link>
+                    ))}
+                  </div>
+                </details>
+              )}
+
+              <details className="relative">
+                <summary className="grid h-10 w-10 cursor-pointer list-none place-items-center overflow-hidden rounded-full bg-[#eceef1] text-xs font-bold ring-1 ring-black/10">
+                  {userAvatarUrl ? (
+                    <img
+                      src={userAvatarUrl}
+                      alt={userName}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    initials
+                  )}
+                </summary>
+                <div className="absolute right-0 mt-2 w-52 rounded-xl border border-[#e1e4e8] bg-white p-2 shadow-lg">
+                  <div className="px-3 py-2">
+                    <p className="truncate text-sm font-semibold">{userName}</p>
+                    <p className="text-xs capitalize text-[#7a7f89]">{role}</p>
+                  </div>
+                  <form action={signOutAction}>
+                    <button
+                      data-feedback="Signing out…"
+                      className="w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-[#f3f4f6]"
+                    >
+                      Sign out
+                    </button>
+                  </form>
+                </div>
+              </details>
+            </div>
+          </div>
+
+          <nav className="flex gap-1 overflow-x-auto border-t border-[#f0f1f3] px-3 py-2 lg:hidden">
+            {[...visiblePrimary, ...visibleSecondary].map(({ label, href }) => {
+              const isActive = pathname === href || pathname.startsWith(`${href}/`);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className="whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold"
+                  style={
+                    isActive
+                      ? { backgroundColor: accentColor, color: accentText }
+                      : { backgroundColor: "#f5f6f7", color: "#555b64" }
+                  }
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
+        </header>
+
+        <main className="p-5 lg:p-8">{children}</main>
+      </div>
+    </div>
+  );
+}
