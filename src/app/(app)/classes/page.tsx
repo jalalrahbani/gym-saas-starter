@@ -1,3 +1,4 @@
+import { OperationKeyInput } from "@/components/operation-key-input";
 import { bookClassAction, createClassSessionAction, createGroupClassAction } from "@/app/actions";
 import { AccessDenied } from "@/components/access-denied";
 import { requireAppContext } from "@/lib/app-context";
@@ -28,7 +29,7 @@ export default async function ClassesPage() {
     <div className={`grid gap-6 ${canCreateClassType ? "xl:grid-cols-2" : ""}`}>
       {canCreateClassType && <section className="rounded-2xl border border-[#e4e6ea] bg-white p-5">
         <h2 className="font-semibold">Create class type</h2>
-        <form action={createGroupClassAction} className="mt-4 grid gap-3 sm:grid-cols-2">
+        <form action={createGroupClassAction} className="mt-4 grid gap-3 sm:grid-cols-2"><OperationKeyInput />
           <input name="name" required placeholder="HIIT" className="rounded-lg border border-[#dfe2e7] px-3 py-2"/>
           <input name="capacity" required type="number" min="1" defaultValue="12" className="rounded-lg border border-[#dfe2e7] px-3 py-2"/>
           <input name="duration_minutes" required type="number" min="10" defaultValue="60" className="rounded-lg border border-[#dfe2e7] px-3 py-2"/>
@@ -39,7 +40,7 @@ export default async function ClassesPage() {
 
       <section className="rounded-2xl border border-[#e4e6ea] bg-white p-5">
         <h2 className="font-semibold">Schedule class</h2>
-        <form action={createClassSessionAction} className="mt-4 grid gap-3 sm:grid-cols-2">
+        <form action={createClassSessionAction} className="mt-4 grid gap-3 sm:grid-cols-2"><OperationKeyInput />
           <select name="class_id" required className="rounded-lg border border-[#dfe2e7] px-3 py-2">
             <option value="">Class…</option>
             {(classesRes.data ?? []).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -72,7 +73,7 @@ export default async function ClassesPage() {
             <div><h2 className="font-semibold">{s.group_classes?.name}</h2><p className="mt-1 text-sm text-[#7a7f89]">{formatDateTime(s.starts_at, ctx.organization.timezone)}</p></div>
             <div className="text-right"><span className="text-sm font-semibold">{bookings}/{s.capacity}</span>{waitlisted > 0 && <p className="text-xs text-[#7a7f89]">{waitlisted} waitlisted</p>}</div>
           </div>
-          <form action={bookClassAction} className="mt-4 flex gap-2">
+          <form action={bookClassAction} className="mt-4 flex gap-2"><OperationKeyInput />
             <input type="hidden" name="class_session_id" value={s.id}/>
             <select name="member_id" required className="min-w-0 flex-1 rounded-lg border border-[#dfe2e7] px-3 py-2 text-sm">
               <option value="">Book member…</option>

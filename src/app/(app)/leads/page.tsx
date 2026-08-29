@@ -1,15 +1,122 @@
 import Link from "next/link";
-import { convertLeadToMemberAction, createLeadAction, updateLeadStageAction } from "@/app/actions";
+import {
+  convertLeadToMemberAction,
+  createLeadAction,
+  updateLeadStageAction,
+} from "@/app/actions";
 import { AccessDenied } from "@/components/access-denied";
+import { OperationKeyInput } from "@/components/operation-key-input";
 import { requireAppContext } from "@/lib/app-context";
 import { formatDateTime } from "@/lib/format";
 import { ROLE_GROUPS, roleAllowed } from "@/lib/roles";
 
-const stages=["new","contacted","trial","negotiating","joined","lost"] as const;
-export default async function LeadsPage(){
-  const ctx=await requireAppContext();
-  if(!roleAllowed(ctx.role,ROLE_GROUPS.retention)) return <AccessDenied area="lead management"/>;
-  const {data:leads,error}=await ctx.supabase.from("leads").select("*").eq("organization_id",ctx.organization.id).order("created_at",{ascending:false}).limit(200);
-  if(error) throw new Error(error.message);
-  return <section className="mx-auto max-w-7xl space-y-6"><div><p className="text-sm text-[#7a7f89]">Lead pipeline</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">Leads</h1><p className="mt-2 text-sm text-[#7a7f89]">Capture interest once, follow it through trial, then convert the same record into a member.</p></div><section className="rounded-2xl border border-[#e4e6ea] bg-white p-5"><h2 className="font-semibold">Capture lead</h2><form action={createLeadAction} className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6"><input name="full_name" required placeholder="Full name" className="rounded-lg border border-[#dfe2e7] px-3 py-2"/><input name="phone" placeholder="Phone" className="rounded-lg border border-[#dfe2e7] px-3 py-2"/><input name="email" type="email" placeholder="Email" className="rounded-lg border border-[#dfe2e7] px-3 py-2"/><select name="source" className="rounded-lg border border-[#dfe2e7] px-3 py-2"><option value="">Source…</option><option>Instagram</option><option>Google</option><option>Referral</option><option>Walk-in</option><option>Website</option><option>Facebook</option><option>Other</option></select><input name="next_follow_up_at" type="datetime-local" className="rounded-lg border border-[#dfe2e7] px-3 py-2"/><button data-feedback="Adding lead…" className="rounded-lg bg-[#111318] px-4 py-2 text-sm font-semibold text-white">Add lead</button></form><p className="mt-2 text-xs text-[#8a9099]">Times are interpreted in {ctx.organization.timezone}.</p></section><div className="grid gap-4 xl:grid-cols-3">{stages.map(stage=><section key={stage} className="rounded-2xl border border-[#e4e6ea] bg-white"><div className="flex items-center justify-between border-b border-[#eceef1] p-4"><h2 className="font-semibold capitalize">{stage}</h2><span className="rounded-full bg-[#f0f2f4] px-2 py-1 text-xs font-semibold">{(leads??[]).filter((l:any)=>l.stage===stage).length}</span></div><div className="space-y-3 p-3">{(leads??[]).filter((l:any)=>l.stage===stage).map((lead:any)=><article key={lead.id} className="rounded-xl border border-[#eceef1] p-3"><p className="font-medium">{lead.full_name}</p><p className="mt-1 text-xs text-[#7a7f89]">{lead.phone||lead.email||"No contact"}{lead.source?` · ${lead.source}`:""}</p>{lead.next_follow_up_at&&<p className="mt-1 text-xs text-[#7a7f89]">Follow up {formatDateTime(lead.next_follow_up_at,ctx.organization.timezone)}</p>}{lead.converted_member_id?<Link href={`/members/${lead.converted_member_id}`} className="mt-3 inline-block rounded-lg bg-[#eef0f2] px-3 py-2 text-xs font-semibold">Open member →</Link>:stage!=="lost"&&<form action={convertLeadToMemberAction} className="mt-3"><input type="hidden" name="lead_id" value={lead.id}/><button data-feedback="Converting lead…" className="w-full rounded-lg bg-[#111318] px-3 py-2 text-xs font-semibold text-white">Convert to member</button></form>}<form action={updateLeadStageAction} className="mt-2 flex gap-2"><input type="hidden" name="lead_id" value={lead.id}/><select name="stage" defaultValue={lead.stage} className="min-w-0 flex-1 rounded-lg border border-[#dfe2e7] px-2 py-1.5 text-xs">{stages.map(s=><option key={s} value={s}>{s}</option>)}</select><button data-feedback="Moving lead…" className="rounded-lg border border-[#111318] px-2.5 py-1.5 text-xs font-semibold">Move</button></form></article>)}</div></section>)}</div></section>;
+const stages = ["new", "contacted", "trial", "negotiating", "joined", "lost"] as const;
+
+export default async function LeadsPage() {
+  const ctx = await requireAppContext();
+  if (!roleAllowed(ctx.role, ROLE_GROUPS.retention)) {
+    return <AccessDenied area="lead management" />;
+  }
+
+  const { data: leads, error } = await ctx.supabase
+    .from("leads")
+    .select("*")
+    .eq("organization_id", ctx.organization.id)
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  if (error) throw new Error(error.message);
+
+  return (
+    <section className="mx-auto max-w-7xl space-y-6">
+      <div>
+        <p className="text-sm text-[#7a7f89]">Lead pipeline</p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight">Leads</h1>
+        <p className="mt-2 text-sm text-[#7a7f89]">
+          Capture interest once, follow it through trial, then convert the same
+          record into a member.
+        </p>
+      </div>
+
+      <section className="rounded-2xl border border-[#e4e6ea] bg-white p-5">
+        <h2 className="font-semibold">Capture lead</h2>
+        <form
+          action={createLeadAction}
+          className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6"
+        >
+          <OperationKeyInput />
+          <input name="full_name" required placeholder="Full name" className="rounded-lg border border-[#dfe2e7] px-3 py-2" />
+          <input name="phone" placeholder="Phone" className="rounded-lg border border-[#dfe2e7] px-3 py-2" />
+          <input name="email" type="email" placeholder="Email" className="rounded-lg border border-[#dfe2e7] px-3 py-2" />
+          <select name="source" className="rounded-lg border border-[#dfe2e7] px-3 py-2">
+            <option value="">Source…</option>
+            <option>Instagram</option><option>Google</option><option>Referral</option>
+            <option>Walk-in</option><option>Website</option><option>Facebook</option><option>Other</option>
+          </select>
+          <input name="next_follow_up_at" type="datetime-local" className="rounded-lg border border-[#dfe2e7] px-3 py-2" />
+          <button data-feedback="Adding lead…" className="rounded-lg bg-[#111318] px-4 py-2 text-sm font-semibold text-white">Add lead</button>
+        </form>
+        <p className="mt-2 text-xs text-[#8a9099]">Times are interpreted in {ctx.organization.timezone}.</p>
+      </section>
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        {stages.map((stage) => (
+          <section key={stage} className="rounded-2xl border border-[#e4e6ea] bg-white">
+            <div className="flex items-center justify-between border-b border-[#eceef1] p-4">
+              <h2 className="font-semibold capitalize">{stage}</h2>
+              <span className="rounded-full bg-[#f0f2f4] px-2 py-1 text-xs font-semibold">
+                {(leads ?? []).filter((lead: any) => lead.stage === stage).length}
+              </span>
+            </div>
+            <div className="space-y-3 p-3">
+              {(leads ?? []).filter((lead: any) => lead.stage === stage).map((lead: any) => (
+                <article key={lead.id} className="rounded-xl border border-[#eceef1] p-3">
+                  <p className="font-medium">{lead.full_name}</p>
+                  <p className="mt-1 text-xs text-[#7a7f89]">
+                    {lead.phone || lead.email || "No contact"}{lead.source ? ` · ${lead.source}` : ""}
+                  </p>
+                  {lead.next_follow_up_at && (
+                    <p className="mt-1 text-xs text-[#7a7f89]">
+                      Follow up {formatDateTime(lead.next_follow_up_at, ctx.organization.timezone)}
+                    </p>
+                  )}
+
+                  {lead.converted_member_id ? (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Link href={`/members/${lead.converted_member_id}`} className="inline-block rounded-lg bg-[#eef0f2] px-3 py-2 text-xs font-semibold">
+                        Open member →
+                      </Link>
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200">
+                        Converted
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      {stage !== "lost" && (
+                        <form action={convertLeadToMemberAction} className="mt-3">
+                          <input type="hidden" name="lead_id" value={lead.id} />
+                          <button data-feedback="Converting lead…" className="w-full rounded-lg bg-[#111318] px-3 py-2 text-xs font-semibold text-white">
+                            Convert to member
+                          </button>
+                        </form>
+                      )}
+                      <form action={updateLeadStageAction} className="mt-2 flex gap-2">
+                        <input type="hidden" name="lead_id" value={lead.id} />
+                        <select name="stage" defaultValue={lead.stage} className="min-w-0 flex-1 rounded-lg border border-[#dfe2e7] px-2 py-1.5 text-xs">
+                          {stages.map((nextStage) => <option key={nextStage} value={nextStage}>{nextStage}</option>)}
+                        </select>
+                        <button data-feedback="Moving lead…" className="rounded-lg border border-[#111318] px-2.5 py-1.5 text-xs font-semibold">
+                          Move
+                        </button>
+                      </form>
+                    </>
+                  )}
+                </article>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </section>
+  );
 }

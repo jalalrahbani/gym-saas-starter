@@ -41,15 +41,38 @@ export function InteractionFeedback() {
       const form = event.target;
       if (!(form instanceof HTMLFormElement)) return;
 
+      if (form.dataset.submitting === "true") {
+        event.preventDefault();
+        return;
+      }
+
       const submitter =
         event.submitter instanceof HTMLElement
           ? event.submitter
-          : form.querySelector<HTMLElement>("button[type='submit'], button:not([type]), input[type='submit']");
+          : form.querySelector<HTMLElement>(
+              "button[type='submit'], button:not([type]), input[type='submit']",
+            );
 
+      form.dataset.submitting = "true";
+      form.setAttribute("aria-busy", "true");
       press(submitter);
+
+      if (submitter instanceof HTMLButtonElement || submitter instanceof HTMLInputElement) {
+        submitter.disabled = true;
+      }
+
       clearMessageTimer();
       setMessage(submitter?.dataset.feedback || "Working…");
-      timer.current = setTimeout(() => setMessage(null), 1800);
+
+      timer.current = setTimeout(() => {
+        if (!form.isConnected) return;
+        delete form.dataset.submitting;
+        form.removeAttribute("aria-busy");
+        if (submitter instanceof HTMLButtonElement || submitter instanceof HTMLInputElement) {
+          submitter.disabled = false;
+        }
+        setMessage(null);
+      }, 8000);
     };
 
     document.addEventListener("pointerdown", onPointerDown, true);

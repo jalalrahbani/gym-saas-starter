@@ -1,3 +1,4 @@
+import { OperationKeyInput } from "@/components/operation-key-input";
 import { completePtSessionAction, createPtPackageAction } from "@/app/actions";
 import { cancelPtSessionAction, reschedulePtSessionAction } from "./actions";
 import { AccessDenied } from "@/components/access-denied";
@@ -114,7 +115,7 @@ export default async function TrainingPage() {
     <div className={`grid gap-6 ${canSellPtPackage ? "xl:grid-cols-2" : ""}`}>
       {canSellPtPackage && <section className="rounded-2xl border border-[#e4e6ea] bg-white p-5">
         <h2 className="font-semibold">Sell PT package</h2>
-        <form action={createPtPackageAction} className="mt-4 grid gap-3 sm:grid-cols-2">
+        <form action={createPtPackageAction} className="mt-4 grid gap-3 sm:grid-cols-2"><OperationKeyInput />
           <select name="member_id" required className="rounded-lg border border-[#dfe2e7] px-3 py-2">
             <option value="">Member…</option>
             {(membersRes.data ?? []).map((m: any) => <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>)}
@@ -131,7 +132,7 @@ export default async function TrainingPage() {
 
       <section className="rounded-2xl border border-[#e4e6ea] bg-white p-5">
         <h2 className="font-semibold">Book PT session</h2>
-        <PtBookingForm members={(membersRes.data ?? []) as any} trainers={(trainersRes.data ?? []) as any} packages={(packagesRes.data ?? []) as any} timezone={ctx.organization.timezone} />
+        <PtBookingForm members={(membersRes.data ?? []) as any} trainers={(trainersRes.data ?? []) as any} packages={(packagesRes.data ?? []) as any} timezone={ctx.organization.timezone} currentUserId={ctx.userId} role={ctx.role} />
       </section>
     </div>
 

@@ -20,6 +20,14 @@ function optional(formData: FormData, key: string) {
   return value || null;
 }
 
+function idempotencyKey(formData: FormData) {
+  const raw = String(formData.get("operation_key") ?? "").trim();
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(raw)) {
+    return raw;
+  }
+  return crypto.randomUUID();
+}
+
 function moneyToMinor(raw: string) {
   const normalized = raw.trim().replace(/,/g, "");
   if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) throw new Error("Enter a valid non-negative amount with at most 2 decimals.");
@@ -110,37 +118,27 @@ export async function createMemberAction(formData: FormData) {
   const ctx = await requireAppContext();
   const firstName = required(formData, "first_name");
   const lastName = required(formData, "last_name");
-  const { data, error } = await ctx.supabase
-    .from("members")
-    .insert({
-      organization_id: ctx.organization.id,
-      home_location_id: String(formData.get("home_location_id") || ctx.location.id),
-      first_name: firstName,
-      last_name: lastName,
-      phone: optional(formData, "phone"),
-      email: optional(formData, "email")?.toLowerCase() ?? null,
-      date_of_birth: optional(formData, "date_of_birth"),
-      emergency_contact_name: optional(formData, "emergency_contact_name"),
-      emergency_contact_phone: optional(formData, "emergency_contact_phone"),
-      status: "active",
-      joined_at: dateInTimeZone(new Date(), ctx.organization.timezone),
-      created_by: ctx.userId,
-    })
-    .select("id")
-    .single();
-  if (error) throw new Error(error.message);
+  const homeLocationId = String(formData.get("home_location_id") || ctx.location.id);
 
-  await ctx.supabase.from("audit_logs").insert({
-    organization_id: ctx.organization.id,
-    actor_user_id: ctx.userId,
-    action: "member.created",
-    entity_type: "member",
-    entity_id: data.id,
-    after_data: { first_name: firstName, last_name: lastName },
+  const { data: memberId, error } = await ctx.supabase.rpc("create_member_idempotent", {
+    p_organization_id: ctx.organization.id,
+    p_home_location_id: homeLocationId,
+    p_first_name: firstName,
+    p_last_name: lastName,
+    p_phone: optional(formData, "phone"),
+    p_email: optional(formData, "email")?.toLowerCase() ?? null,
+    p_date_of_birth: optional(formData, "date_of_birth"),
+    p_emergency_contact_name: optional(formData, "emergency_contact_name"),
+    p_emergency_contact_phone: optional(formData, "emergency_contact_phone"),
+    p_joined_at: dateInTimeZone(new Date(), ctx.organization.timezone),
+    p_idempotency_key: idempotencyKey(formData),
   });
+
+  if (error || !memberId) throw new Error(error?.message ?? "Unable to create member.");
+
   revalidatePath("/members");
   revalidatePath("/dashboard");
-  redirect(`/members/${data.id}`);
+  redirect(`/members/${memberId}`);
 }
 
 function parseCsv(text: string) {
@@ -222,10 +220,11 @@ export async function importMembersCsvAction(formData: FormData) {
   });
   if (rows.length > 5000) redirect("/members/import?error=Import%20is%20limited%20to%205000%20members%20at%20a%20time");
 
-  const { data, error } = await ctx.supabase.rpc("import_members", {
+  const { data, error } = await ctx.supabase.rpc("import_members_idempotent", {
     p_organization_id: ctx.organization.id,
     p_home_location_id: String(formData.get("home_location_id") || ctx.location.id),
     p_rows: rows,
+    p_idempotency_key: idempotencyKey(formData),
   });
   if (error) redirect(`/members/import?error=${encodeURIComponent(error.message)}`);
   revalidatePath("/members");
@@ -251,15 +250,19 @@ export async function updateMemberAction(formData: FormData) {
   revalidatePath("/members");
 }
 
+
 export async function archiveMemberAction(formData: FormData) {
   const ctx = await requireAppContext();
   const memberId = required(formData, "member_id");
-  const now = new Date().toISOString();
-  const { error } = await ctx.supabase.from("members").update({ status: "archived", archived_at: now, updated_at: now })
-    .eq("organization_id", ctx.organization.id).eq("id", memberId);
+
+  const { error } = await ctx.supabase.rpc("archive_member", {
+    p_organization_id: ctx.organization.id,
+    p_member_id: memberId,
+  });
+
   if (error) throw new Error(error.message);
-  await ctx.supabase.from("audit_logs").insert({ organization_id: ctx.organization.id, actor_user_id: ctx.userId, action: "member.archived", entity_type: "member", entity_id: memberId });
   revalidatePath("/members");
+  revalidatePath("/dashboard");
   redirect("/members");
 }
 
@@ -272,21 +275,24 @@ export async function addMemberNoteAction(formData: FormData) {
   revalidatePath(`/members/${memberId}`);
 }
 
+
 export async function createPlanAction(formData: FormData) {
   const ctx = await requireAppContext();
-  const billingType = required(formData, "billing_type");
   const durationRaw = optional(formData, "duration_days");
   const visitsRaw = optional(formData, "included_visits");
-  const { error } = await ctx.supabase.from("membership_plans").insert({
-    organization_id: ctx.organization.id,
-    location_id: optional(formData, "location_id"),
-    name: required(formData, "name"),
-    billing_type: billingType,
-    duration_days: durationRaw ? Number(durationRaw) : null,
-    included_visits: visitsRaw ? Number(visitsRaw) : null,
-    price_minor: moneyToMinor(required(formData, "price")),
-    currency: required(formData, "currency").toUpperCase(),
+
+  const { error } = await ctx.supabase.rpc("create_membership_plan_idempotent", {
+    p_organization_id: ctx.organization.id,
+    p_location_id: optional(formData, "location_id"),
+    p_name: required(formData, "name"),
+    p_billing_type: required(formData, "billing_type"),
+    p_duration_days: durationRaw ? Number(durationRaw) : null,
+    p_included_visits: visitsRaw ? Number(visitsRaw) : null,
+    p_price_minor: moneyToMinor(required(formData, "price")),
+    p_currency: required(formData, "currency").toUpperCase(),
+    p_idempotency_key: idempotencyKey(formData),
   });
+
   if (error) throw new Error(error.message);
   revalidatePath("/memberships");
 }
@@ -294,7 +300,7 @@ export async function createPlanAction(formData: FormData) {
 export async function enrollMembershipAction(formData: FormData) {
   const ctx = await requireAppContext();
   const memberId = required(formData, "member_id");
-  const { error } = await ctx.supabase.rpc("enroll_membership", {
+  const { error } = await ctx.supabase.rpc("enroll_membership_idempotent", {
     p_organization_id: ctx.organization.id,
     p_member_id: memberId,
     p_plan_id: required(formData, "plan_id"),
@@ -302,6 +308,7 @@ export async function enrollMembershipAction(formData: FormData) {
     p_amount_paid_minor: moneyToMinor(String(formData.get("amount_paid") || "0")),
     p_payment_method: String(formData.get("payment_method") || "cash"),
     p_note: optional(formData, "note"),
+    p_idempotency_key: idempotencyKey(formData),
   });
   if (error) throw new Error(error.message);
   revalidatePath(`/members/${memberId}`);
@@ -331,17 +338,20 @@ export async function recordPaymentAction(formData: FormData) {
   const memberId = required(formData, "member_id");
   const membershipId = optional(formData, "membership_id");
   const amountMinor = moneyToMinor(required(formData, "amount"));
-  const { error } = await ctx.supabase.rpc("record_payment", {
+
+  const { error } = await ctx.supabase.rpc("record_payment_idempotent", {
     p_organization_id: ctx.organization.id,
-    p_location_id: String(formData.get("location_id") || ctx.location.id),
+    p_location_id: ctx.location.id,
     p_member_id: memberId,
     p_membership_id: membershipId,
     p_amount_minor: amountMinor,
     p_currency: required(formData, "currency").toUpperCase(),
-    p_payment_method: required(formData, "payment_method"),
+    p_payment_method: String(formData.get("payment_method") || "cash"),
     p_external_reference: optional(formData, "external_reference"),
     p_note: optional(formData, "note"),
+    p_idempotency_key: idempotencyKey(formData),
   });
+
   if (error) throw new Error(error.message);
   revalidatePath("/payments");
   revalidatePath(`/members/${memberId}`);
@@ -351,10 +361,13 @@ export async function recordPaymentAction(formData: FormData) {
 export async function voidPaymentAction(formData: FormData) {
   const ctx = await requireAppContext();
   const paymentId = required(formData, "payment_id");
-  const { error } = await ctx.supabase.from("payments").update({ status: "voided", voided_at: new Date().toISOString() })
-    .eq("organization_id", ctx.organization.id).eq("id", paymentId).eq("status", "paid");
+
+  const { error } = await ctx.supabase.rpc("void_payment", {
+    p_organization_id: ctx.organization.id,
+    p_payment_id: paymentId,
+  });
+
   if (error) throw new Error(error.message);
-  await ctx.supabase.from("audit_logs").insert({ organization_id: ctx.organization.id, actor_user_id: ctx.userId, action: "payment.voided", entity_type: "payment", entity_id: paymentId });
   revalidatePath("/payments");
   revalidatePath("/dashboard");
 }
@@ -378,38 +391,44 @@ export async function assignAccessCredentialAction(formData: FormData) {
   revalidatePath(`/members/${memberId}`);
 }
 
+
 export async function createPtPackageAction(formData: FormData) {
   const ctx = await requireAppContext();
   const memberId = required(formData, "member_id");
-  const sessions = Number(required(formData, "sessions"));
-  const { error } = await ctx.supabase.from("pt_packages").insert({
-    organization_id: ctx.organization.id,
-    member_id: memberId,
-    trainer_user_id: optional(formData, "trainer_user_id"),
-    sessions_purchased: sessions,
-    sessions_remaining: sessions,
-    expires_on: optional(formData, "expires_on"),
+
+  const { error } = await ctx.supabase.rpc("create_pt_package_idempotent", {
+    p_organization_id: ctx.organization.id,
+    p_member_id: memberId,
+    p_trainer_user_id: optional(formData, "trainer_user_id"),
+    p_sessions: Number(required(formData, "sessions")),
+    p_expires_on: optional(formData, "expires_on"),
+    p_idempotency_key: idempotencyKey(formData),
   });
+
   if (error) throw new Error(error.message);
   revalidatePath("/training");
   revalidatePath(`/members/${memberId}`);
 }
+
 
 export async function createPtSessionAction(formData: FormData) {
   const ctx = await requireAppContext();
   const startsAt = wallTimeToUtcIso(required(formData, "starts_at"), ctx.organization.timezone);
   const duration = Number(String(formData.get("duration_minutes") || "60"));
   const endsAt = addMinutesIso(startsAt, duration);
-  const { error } = await ctx.supabase.from("pt_sessions").insert({
-    organization_id: ctx.organization.id,
-    location_id: String(formData.get("location_id") || ctx.location.id),
-    member_id: required(formData, "member_id"),
-    trainer_user_id: required(formData, "trainer_user_id"),
-    pt_package_id: optional(formData, "pt_package_id"),
-    starts_at: startsAt,
-    ends_at: endsAt,
-    notes: optional(formData, "notes"),
+
+  const { error } = await ctx.supabase.rpc("create_pt_session_idempotent", {
+    p_organization_id: ctx.organization.id,
+    p_location_id: ctx.location.id,
+    p_member_id: required(formData, "member_id"),
+    p_trainer_user_id: required(formData, "trainer_user_id"),
+    p_pt_package_id: optional(formData, "pt_package_id"),
+    p_starts_at: startsAt,
+    p_ends_at: endsAt,
+    p_notes: optional(formData, "notes"),
+    p_idempotency_key: idempotencyKey(formData),
   });
+
   if (error) throw new Error(error.message);
   revalidatePath("/training");
 }
@@ -421,45 +440,57 @@ export async function completePtSessionAction(formData: FormData) {
   revalidatePath("/training");
 }
 
+
 export async function createGroupClassAction(formData: FormData) {
   const ctx = await requireAppContext();
-  const { error } = await ctx.supabase.from("group_classes").insert({
-    organization_id: ctx.organization.id,
-    location_id: optional(formData, "location_id"),
-    name: required(formData, "name"),
-    description: optional(formData, "description"),
-    capacity: Number(required(formData, "capacity")),
-    duration_minutes: Number(required(formData, "duration_minutes")),
+
+  const { error } = await ctx.supabase.rpc("create_group_class_idempotent", {
+    p_organization_id: ctx.organization.id,
+    p_location_id: optional(formData, "location_id"),
+    p_name: required(formData, "name"),
+    p_description: optional(formData, "description"),
+    p_capacity: Number(required(formData, "capacity")),
+    p_duration_minutes: Number(required(formData, "duration_minutes")),
+    p_idempotency_key: idempotencyKey(formData),
   });
+
   if (error) throw new Error(error.message);
   revalidatePath("/classes");
 }
+
 
 export async function createClassSessionAction(formData: FormData) {
   const ctx = await requireAppContext();
   const startsAt = wallTimeToUtcIso(required(formData, "starts_at"), ctx.organization.timezone);
   const duration = Number(required(formData, "duration_minutes"));
   const endsAt = addMinutesIso(startsAt, duration);
-  const { error } = await ctx.supabase.from("class_sessions").insert({
-    organization_id: ctx.organization.id,
-    class_id: required(formData, "class_id"),
-    location_id: String(formData.get("location_id") || ctx.location.id),
-    trainer_user_id: optional(formData, "trainer_user_id"),
-    starts_at: startsAt,
-    ends_at: endsAt,
-    capacity: Number(required(formData, "capacity")),
+
+  const { error } = await ctx.supabase.rpc("create_class_session_idempotent", {
+    p_organization_id: ctx.organization.id,
+    p_class_id: required(formData, "class_id"),
+    p_location_id: String(formData.get("location_id") || ctx.location.id),
+    p_trainer_user_id: optional(formData, "trainer_user_id"),
+    p_starts_at: startsAt,
+    p_ends_at: endsAt,
+    p_capacity: Number(required(formData, "capacity")),
+    p_idempotency_key: idempotencyKey(formData),
   });
+
   if (error) throw new Error(error.message);
   revalidatePath("/classes");
 }
 
+
 export async function bookClassAction(formData: FormData) {
   const ctx = await requireAppContext();
-  const { error } = await ctx.supabase.rpc("book_class", {
+
+  const { error } = await ctx.supabase.rpc("book_class_idempotent", {
     p_organization_id: ctx.organization.id,
     p_class_session_id: required(formData, "class_session_id"),
     p_member_id: required(formData, "member_id"),
+    p_idempotency_key: idempotencyKey(formData),
   });
+
   if (error) throw new Error(error.message);
   revalidatePath("/classes");
 }
@@ -475,32 +506,39 @@ export async function revokeAccessCredentialAction(formData: FormData) {
   revalidatePath(`/members/${memberId}`);
 }
 
+
 export async function createLeadAction(formData: FormData) {
   const ctx = await requireAppContext();
-  const { error } = await ctx.supabase.from("leads").insert({
-    organization_id: ctx.organization.id,
-    location_id: String(formData.get("location_id") || ctx.location.id),
-    full_name: required(formData, "full_name"),
-    phone: optional(formData, "phone"),
-    email: optional(formData, "email")?.toLowerCase() ?? null,
-    source: optional(formData, "source"),
-    stage: "new",
-    next_follow_up_at: optional(formData, "next_follow_up_at") ? wallTimeToUtcIso(required(formData, "next_follow_up_at"), ctx.organization.timezone) : null,
-    created_by: ctx.userId,
+  const followUp = optional(formData, "next_follow_up_at");
+
+  const { error } = await ctx.supabase.rpc("create_lead_idempotent", {
+    p_organization_id: ctx.organization.id,
+    p_location_id: String(formData.get("location_id") || ctx.location.id),
+    p_full_name: required(formData, "full_name"),
+    p_phone: optional(formData, "phone"),
+    p_email: optional(formData, "email")?.toLowerCase() ?? null,
+    p_source: optional(formData, "source"),
+    p_next_follow_up_at: followUp
+      ? wallTimeToUtcIso(followUp, ctx.organization.timezone)
+      : null,
+    p_idempotency_key: idempotencyKey(formData),
   });
+
   if (error) throw new Error(error.message);
   revalidatePath("/leads");
 }
 
+
 export async function updateLeadStageAction(formData: FormData) {
   const ctx = await requireAppContext();
-  const stage = required(formData, "stage");
-  const leadId = required(formData, "lead_id");
-  const { error } = await ctx.supabase.from("leads").update({
-    stage,
-    lost_reason: stage === "lost" ? optional(formData, "lost_reason") : null,
-    updated_at: new Date().toISOString(),
-  }).eq("organization_id", ctx.organization.id).eq("id", leadId);
+
+  const { error } = await ctx.supabase.rpc("update_lead_stage", {
+    p_organization_id: ctx.organization.id,
+    p_lead_id: required(formData, "lead_id"),
+    p_stage: required(formData, "stage"),
+    p_lost_reason: optional(formData, "lost_reason"),
+  });
+
   if (error) throw new Error(error.message);
   revalidatePath("/leads");
 }
