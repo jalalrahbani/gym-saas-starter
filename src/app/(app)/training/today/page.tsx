@@ -192,9 +192,12 @@ export default async function TodayTrainingPage({
               <article key={session.id} className="space-y-4 p-5">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
-                    <p className="text-lg font-semibold">
+                    <a
+                      href={`/members/${session.member_id}/training`}
+                      className="text-lg font-semibold underline decoration-[#cfd3d8] underline-offset-4"
+                    >
                       {member?.first_name} {member?.last_name}
-                    </p>
+                    </a>
                     <p className="mt-1 text-sm text-[#575d67]">
                       {formatDateTime(session.starts_at, ctx.organization.timezone)} →{" "}
                       {formatDateTime(session.ends_at, ctx.organization.timezone)}
