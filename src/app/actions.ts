@@ -568,7 +568,7 @@ export async function inviteStaffAction(formData: FormData) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
   const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
     data: { full_name: fullName },
-    ...(siteUrl ? { redirectTo: `${siteUrl}/auth/confirm?next=/dashboard` } : {}),
+    ...(siteUrl ? { redirectTo: `${siteUrl}/auth/confirm?next=/accept-invite` } : {}),
   });
   if (error || !data.user) throw new Error(error?.message ?? "Unable to invite staff member.");
 
