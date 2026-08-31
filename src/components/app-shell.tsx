@@ -14,6 +14,7 @@ const allRoles = ["owner", "admin", "manager", "reception", "trainer", "accounta
 
 const primary: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", roles: allRoles },
+  { label: "Front desk", href: "/front-desk", roles: ["owner", "admin", "manager", "reception"] },
   { label: "Members", href: "/members", roles: allRoles },
   { label: "Access", href: "/check-in", roles: ["owner", "admin", "manager", "reception", "trainer"] },
   { label: "Memberships", href: "/memberships", roles: ["owner", "admin", "manager", "reception", "accountant"] },
@@ -32,6 +33,7 @@ const secondary: NavItem[] = [
 
 const quickAdd: NavItem[] = [
   { label: "New member", href: "/members?new=1", roles: ["owner", "admin", "manager", "reception"] },
+  { label: "Membership sale", href: "/front-desk", roles: ["owner", "admin", "manager", "reception"] },
   { label: "Check in / out", href: "/check-in", roles: ["owner", "admin", "manager", "reception", "trainer"] },
   { label: "Record payment", href: "/payments", roles: ["owner", "admin", "manager", "reception", "accountant"] },
   { label: "Book PT", href: "/training", roles: ["owner", "admin", "manager", "reception", "trainer"] },
