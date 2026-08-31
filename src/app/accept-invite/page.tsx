@@ -1,50 +1,97 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+type InviteState = "loading" | "ready" | "invalid" | "saving";
+
 export default function AcceptInvitePage() {
   const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
 
-  const [email, setEmail] = useState("");
-  const [ready, setReady] = useState(false);
+  const [state, setState] = useState<InviteState>("loading");
   const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    async function loadUser() {
+    let cancelled = false;
+
+    async function establishInviteSession() {
+      const supabase = createClient();
+
+      const hash = new URLSearchParams(
+        window.location.hash.startsWith("#")
+          ? window.location.hash.slice(1)
+          : window.location.hash,
+      );
+
+      const accessToken = hash.get("access_token");
+      const refreshToken = hash.get("refresh_token");
+      const authError = hash.get("error_description");
+
+      if (authError) {
+        if (!cancelled) {
+          setError(decodeURIComponent(authError.replace(/\+/g, " ")));
+          setState("invalid");
+        }
+        return;
+      }
+
+      // Supabase's default invite template returns an authenticated
+      // session in the URL fragment. Persist it into the browser client.
+      if (accessToken && refreshToken) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+        if (sessionError) {
+          if (!cancelled) {
+            setError("The invitation link is invalid or has expired.");
+            setState("invalid");
+          }
+          return;
+        }
+
+        // Remove sensitive tokens from the visible URL/history.
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname + window.location.search,
+        );
+      }
+
       const {
         data: { user },
         error: userError,
       } = await supabase.auth.getUser();
 
+      if (cancelled) return;
+
       if (userError || !user) {
-        setError(
-          "Your invitation session is missing or has expired. Please open a fresh invitation email."
-        );
-        setReady(true);
+        setError("The invitation link is invalid or has expired.");
+        setState("invalid");
         return;
       }
 
-      setEmail(user.email ?? "");
-      setReady(true);
+      setState("ready");
     }
 
-    void loadUser();
-  }, [supabase]);
+    establishInviteSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
 
     const formData = new FormData(event.currentTarget);
     const password = String(formData.get("password") ?? "");
-    const confirmPassword = String(
-      formData.get("confirm_password") ?? ""
-    );
+    const confirmPassword = String(formData.get("confirm_password") ?? "");
+
+    setError(null);
 
     if (password.length < 8) {
       setError("Password must be at least 8 characters.");
@@ -52,19 +99,21 @@ export default function AcceptInvitePage() {
     }
 
     if (password !== confirmPassword) {
-      setError("The passwords do not match.");
+      setError("Passwords do not match.");
       return;
     }
 
-    setSaving(true);
+    setState("saving");
+
+    const supabase = createClient();
 
     const { error: updateError } = await supabase.auth.updateUser({
       password,
     });
 
     if (updateError) {
-      setSaving(false);
       setError(updateError.message);
+      setState("ready");
       return;
     }
 
@@ -78,7 +127,7 @@ export default function AcceptInvitePage() {
         <div className="mb-4 flex items-center justify-between">
           <Link
             href="/"
-            className="text-sm font-semibold text-[#59606b] transition hover:text-[#111318]"
+            className="text-sm font-semibold text-[#59606b] hover:text-[#111318]"
           >
             ← Back to home
           </Link>
@@ -94,45 +143,44 @@ export default function AcceptInvitePage() {
 
         <div className="rounded-3xl border border-[#e3e6ea] bg-white p-7 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8a9099]">
-            Staff invitation
+            Gym invitation
           </p>
 
           <h1 className="mt-3 text-3xl font-semibold tracking-tight">
-            Finish setting up your account
+            Welcome to your gym workspace
           </h1>
 
-          <p className="mt-2 text-sm leading-6 text-[#737983]">
-            Create a password for your gym workspace. You will use this
-            email and password whenever you sign in.
-          </p>
+          {state === "loading" && (
+            <p className="mt-4 text-sm text-[#737983]">
+              Verifying your invitation…
+            </p>
+          )}
 
-          {!ready ? (
-            <div className="mt-6 rounded-xl bg-[#f7f8f9] p-4 text-sm text-[#737983]">
-              Checking your invitation…
-            </div>
-          ) : error && !email ? (
+          {state === "invalid" && (
             <>
-              <div className="mt-6 rounded-xl bg-red-50 p-4 text-sm leading-6 text-red-800">
-                {error}
+              <div className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-800">
+                {error ?? "This invitation is no longer valid."}
               </div>
+
+              <p className="mt-5 text-center text-sm text-[#747a84]">
+                Ask your gym administrator to send you a new invitation.
+              </p>
 
               <Link
                 href="/login"
-                className="mt-5 flex w-full justify-center rounded-xl bg-[#111318] px-4 py-3 text-sm font-semibold text-white"
+                className="mt-5 block rounded-xl border border-[#dfe2e7] px-4 py-3 text-center text-sm font-semibold text-[#111318]"
               >
-                Return to sign in
+                Go to sign in
               </Link>
             </>
-          ) : (
+          )}
+
+          {(state === "ready" || state === "saving") && (
             <>
-              <div className="mt-5 rounded-xl bg-[#f7f8f9] px-4 py-3">
-                <p className="text-xs font-medium text-[#8a9099]">
-                  Your sign-in email
-                </p>
-                <p className="mt-1 text-sm font-semibold text-[#111318]">
-                  {email}
-                </p>
-              </div>
+              <p className="mt-2 text-sm leading-6 text-[#737983]">
+                Your invitation has been verified. Create a password for future
+                sign-ins to this workspace.
+              </p>
 
               {error && (
                 <div className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-800">
@@ -149,6 +197,7 @@ export default function AcceptInvitePage() {
                     minLength={8}
                     required
                     autoComplete="new-password"
+                    disabled={state === "saving"}
                     className="mt-1.5 w-full rounded-xl border border-[#dfe2e7] px-3 py-3 outline-none focus:border-[#111318]"
                   />
                 </label>
@@ -161,27 +210,20 @@ export default function AcceptInvitePage() {
                     minLength={8}
                     required
                     autoComplete="new-password"
+                    disabled={state === "saving"}
                     className="mt-1.5 w-full rounded-xl border border-[#dfe2e7] px-3 py-3 outline-none focus:border-[#111318]"
                   />
                 </label>
 
                 <button
-                  disabled={saving}
+                  disabled={state === "saving"}
                   className="w-full rounded-xl bg-[#111318] px-4 py-3 text-sm font-semibold text-white"
                 >
-                  {saving ? "Setting up account…" : "Continue to dashboard"}
+                  {state === "saving"
+                    ? "Setting up your account…"
+                    : "Create password & continue"}
                 </button>
               </form>
-
-              <p className="mt-5 text-center text-xs leading-5 text-[#8a9099]">
-                Already completed setup?{" "}
-                <Link
-                  href="/login"
-                  className="font-semibold text-[#111318]"
-                >
-                  Sign in normally
-                </Link>
-              </p>
             </>
           )}
         </div>

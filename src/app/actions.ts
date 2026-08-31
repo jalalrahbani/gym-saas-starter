@@ -568,7 +568,7 @@ export async function inviteStaffAction(formData: FormData) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
   const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
     data: { full_name: fullName },
-    ...(siteUrl ? { redirectTo: `${siteUrl}/auth/confirm?next=/accept-invite` } : {}),
+    ...(siteUrl ? { redirectTo: `${siteUrl}/accept-invite` } : {}),
   });
   if (error || !data.user) throw new Error(error?.message ?? "Unable to invite staff member.");
 
@@ -661,4 +661,67 @@ export async function createBillingPortalAction() {
   const session = await stripeRequest("/billing_portal/sessions", params);
   if (!session.url) throw new Error("Stripe did not return a billing portal URL.");
   redirect(session.url);
+}
+
+
+export async function forgotPasswordAction(formData: FormData) {
+  const supabase = await createClient();
+  const email = required(formData, "email").toLowerCase();
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
+
+  if (!siteUrl) {
+    redirect("/forgot-password?error=Password%20recovery%20is%20not%20configured.");
+  }
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${siteUrl}/auth/recovery`,
+  });
+
+  if (error) {
+    redirect(`/forgot-password?error=${encodeURIComponent(error.message)}`);
+  }
+
+  redirect(
+    "/forgot-password?message=If%20an%20account%20exists%20for%20that%20email%2C%20a%20password%20reset%20link%20has%20been%20sent."
+  );
+}
+
+export async function updateRecoveredPasswordAction(formData: FormData) {
+  const supabase = await createClient();
+
+  const password = required(formData, "password");
+  const confirmPassword = required(formData, "confirm_password");
+
+  if (password.length < 8) {
+    redirect("/reset-password?error=Password%20must%20be%20at%20least%208%20characters.");
+  }
+
+  if (password !== confirmPassword) {
+    redirect("/reset-password?error=Passwords%20do%20not%20match.");
+  }
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    redirect(
+      "/forgot-password?error=Your%20password%20reset%20session%20has%20expired.%20Please%20request%20a%20new%20link."
+    );
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    password,
+  });
+
+  if (error) {
+    redirect(`/reset-password?error=${encodeURIComponent(error.message)}`);
+  }
+
+  await supabase.auth.signOut();
+
+  redirect(
+    "/login?message=Password%20updated%20successfully.%20Sign%20in%20with%20your%20new%20password."
+  );
 }
